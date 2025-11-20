@@ -1,0 +1,141 @@
+[{
+"role": "angular developer", "description": "An angular developer with expertise in Angular development skills assessment.", "skills": {
+  "technical_skills": {
+    "core_angular": [
+      "Angular architecture and module system",
+      "Components, Directives, Pipes",
+      "Dependency Injection",
+      "Lifecycle hooks (ngOnInit, ngOnChanges, etc.)",
+      "Change detection strategies (Default, OnPush)"
+    ],
+    "frontend_technologies": [
+      "HTML5, CSS3, SCSS",
+      "TypeScript",
+      "JavaScript ES6+",
+      "Responsive design and Flex/Grid layouts",
+      "Angular Material / Tailwind CSS"
+    ],
+    "data_binding_and_communication": [
+      "Interpolation, Property Binding, Event Binding, Two-way Binding",
+      "@Input() and @Output() for component communication",
+      "ViewChild, ContentChild",
+      "Reactive Forms and Template-driven Forms"
+    ],
+    "state_management": [
+      "RxJS Observables and operators (map, switchMap, mergeMap, combineLatest)",
+      "NgRx or Akita store for large applications",
+      "Services and singleton state sharing"
+    ],
+    "routing_and_navigation": [
+      "RouterModule configuration",
+      "Lazy loading modules",
+      "Route guards (CanActivate, CanDeactivate, CanLoad, Resolve)",
+      "Query params and route parameters"
+    ],
+    "performance_optimization": [
+      "OnPush change detection",
+      "trackBy for *ngFor",
+      "Virtual scrolling (cdk-virtual-scroll-viewport)",
+      "Lazy loading and code splitting"
+    ],
+    "testing": [
+      "Unit testing with Jasmine and Karma",
+      "Component testing with TestBed",
+      "Service testing and mocking dependencies",
+      "Async testing with fakeAsync and tick()"
+    ],
+    "build_and_deployment": [
+      "Angular CLI",
+      "Webpack / Vite knowledge",
+      "CI/CD pipelines for Angular apps",
+      "AOT and JIT compilation",
+      "Production optimizations (minification, tree-shaking)"
+    ],
+    "integration_skills": [
+      "HTTPClient for REST API integration",
+      "WebSocket integration for real-time updates",
+      "OAuth / JWT authentication",
+      "Third-party libraries and component integration"
+    ],
+    "modern_angular_features": [
+      "Standalone components",
+      "Signals",
+      "Control flow directives (@if, @for)",
+      "Typed Forms with strict TypeScript"
+    ]
+  },
+  "soft_skills": [
+    "Problem-solving and debugging",
+    "Code review and collaboration",
+    "Agile/Scrum methodology",
+    "Communication with backend teams",
+    "Writing clean, maintainable, and scalable code"
+  ]
+ }
+},
+{ "role": "flutter developer", "description": "A flutter developer with expertise in Flutter development skills assessment.", "skills": {
+  "technical_skills": {
+    "core_flutter": [
+      "Flutter architecture and widget tree",
+      "Stateful and Stateless widgets",
+      "Flutter lifecycle methods",
+      "Custom widgets creation"
+    ],
+    "dart_programming": [
+      "Dart syntax and features",
+      "Asynchronous programming with Futures and Streams",
+      "Error handling and exceptions",
+      "Dart collections and generics"
+    ],
+    "state_management": [
+      "Provider package",
+      "Bloc pattern (flutter_bloc)",
+      "Riverpod",
+      "GetX"
+    ],
+    "ui_design_and_layout": [
+      "Material Design principles",
+      "Cupertino widgets for iOS",
+      "Responsive design with MediaQuery and LayoutBuilder",
+      "Animations and transitions"
+    ],
+    "navigation_and_routing": [
+      "Navigator 1.0 and Navigator 2.0",
+      "Named routes and route parameters",
+      "Deep linking"
+    ],
+    "performance_optimization": [
+      "Widget rebuilding optimization",
+      "Using const constructors",
+      "Profiling with Flutter DevTools"
+    ],
+    "testing": [
+      "Unit testing with test package",
+      "Widget testing",
+      "Integration testing with flutter_driver"
+    ],
+    "build_and_deployment": [
+      "Flutter CLI commands",
+      "Building for Android and iOS",
+      "CI/CD pipelines for Flutter apps"
+    ],
+    "integration_skills": [
+      "HTTP requests with http package",
+      "Firebase integration (Authentication, Firestore, Analytics)",
+      "Third-party package integration"
+    ],
+    "modern_flutter_features": [
+      "Null safety in Dart",
+      "Flutter web basics",
+      "Flutter desktop basics"
+    ]
+  },
+  "soft_skills": [
+    "Problem-solving and debugging",
+    "Code review and collaboration",
+    "Agile/Scrum methodology",
+    "Communication with backend teams",
+    "Writing clean, maintainable, and scalable code"
+  ]
+ }
+}]
