@@ -38,13 +38,16 @@ def __extract_text_from_pdf(resume) -> str:
     return text
 
 @mcp.tool()
-def candidate_screening(resume, role: str) -> str:
+def candidate_screening(file_path: str, role: str) -> str:
     """
     check the candidate resume and return screening result
 
     Args:
         resume (MCPFile): The candidate's resume in text or uploaded pdf via MCP $file.
         role (str): The job role to screen for.
+    
+    Returns:
+        str: A JSON string containing the screening results.
     """
     hr_skills = __load_hr_skills()
     required_skills = next((x["skills"] for x in hr_skills if x["role"].lower() == role.lower()), None)
@@ -57,15 +60,15 @@ def candidate_screening(resume, role: str) -> str:
     total_matched = 0
 
     results = {}
-    if isinstance(resume, bytes):
+    if not file_path.exists() or not file_path.is_file():
         try:
             resume = __extract_text_from_pdf(resume)
         except Exception as e:
-            return f"Error extracting text from PDF: {str(e)}"
+            return f"missing filepath or Error extracting text from PDF: {str(e)}"
     else:
         resume = str(resume)
     
-    print("Resume Text Extracted:", resume[:1000])  # Print first 1000 characters for debugging
+    print("Resume Text Extracted:", resume[:1000])
     resume_processed = __preprocess_resume(resume)  
     resume_doc = nlp(resume_processed)
 
