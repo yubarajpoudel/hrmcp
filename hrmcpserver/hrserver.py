@@ -54,6 +54,11 @@ def __preprocess_resume(role: str, resume_text: str, role_skills: dict) -> list[
 def get_interviewer_free_time(interviewer: str) -> dict:
     """
     Get the free time of the given interviewer.
+
+    Args:
+        interviewer: Email address of the interviewer
+    Returns:
+        A dictionary containing the free time of the interviewer.
     """
     return CalendarService.get_free_time_from_google(interviewer)
 
@@ -62,6 +67,14 @@ def get_interviewer_free_time(interviewer: str) -> dict:
 def schedule_interview(to_email: str, start_time: str, end_time: str, candidate_name: str = None, role: str = None) -> dict:
     """
     Schedule an interview with the given interviewer for the given role.
+     Args:
+        to_email: Email address of the interviewee
+        start_time: Start time in ISO format (e.g., "2025-11-27T10:00:00+04:00")
+        end_time: End time in ISO format (e.g., "2025-11-27T11:00:00+04:00")
+        candidate_name: Optional name of the candidate
+        role: Optional role being interviewed for
+    Returns:
+        A dictionary containing the result of the interview scheduling.
     """
     return CalendarService.schedule_interview_on_google(to_email, start_time, end_time, candidate_name, role)
 
