@@ -1,17 +1,19 @@
-from mcp.server.fastmcp import FastMCP
-from pathlib import Path
-from fastapi import FastAPI
-import spacy
-import json
-import argparse
 import sys
-from hrmcpserver.prompts import Prompt
-import uvicorn
-from fastapi import UploadFile
-from rapidfuzz import fuzz
+from pathlib import Path
 
+# Add parent directory to path to import modules from root
 parent_dir = Path(__file__).parent.parent
 sys.path.insert(0, str(parent_dir))
+
+from mcp.server.fastmcp import FastMCP
+from hrmcpserver.prompts import Prompt
+from hrmcpserver.calendar_service import CalendarService
+import uvicorn
+from rapidfuzz import fuzz
+from fastapi import FastAPI
+import argparse
+import json
+
 
 from ollama_extractor import OllamaExtractor
 mcp = FastMCP("hr", stateless_http=True)
@@ -22,8 +24,6 @@ mcp = FastMCP("hr", stateless_http=True)
 """
 
 skills_file = Path(__file__).parent / "hrskills.json"
-
-nlp = spacy.load("en_core_web_lg") 
 
 def __load_hr_skills():
     with open(skills_file, "r") as f:
@@ -50,7 +50,21 @@ def __preprocess_resume(role: str, resume_text: str, role_skills: dict) -> list[
         
     return process_data
 
+@mcp.tool()
+def get_interviewer_free_time(interviewer: str) -> dict:
+    """
+    Get the free time of the given interviewer.
+    """
+    return CalendarService.get_free_time_from_google(interviewer) 
 
+# tools to check the free time in the teams calendar of interviewers and schedule a call
+@mcp.tool()
+def schedule_interview(interviewer: str, role: str) -> dict:
+    """
+    Schedule an interview with the given interviewer for the given role.
+    """
+
+    return {"interviewer": interviewer, "role": role}
 
 @mcp.tool()
 def candidate_screening(resume: str, role: str) -> dict:
