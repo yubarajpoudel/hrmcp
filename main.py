@@ -10,6 +10,7 @@ import os
 import base64
 import httpx
 from typing import List, Optional
+import ollama
 
 UPLOAD_DIR = "./uploads/"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
@@ -125,23 +126,53 @@ async def __extract_text_from_pdf(resume_bytes: bytes) -> str:
 async def read_root():
     return {"Hello": "World"}
 
-@app.post("/mcp/hr/candidate_screening")
-async def cand_screening(file: UploadFile = File(...), role: str = Form(...)):
+@app.post("/chat")
+async def chat(message: str = Form(...)):
+    """
+    Chat endpoint for HR management
+     - this will accept the input from the user as a plain text, plan the action with the ollama model to execute the available tools
+     - this will call the right tool based on the plan and return the result as the plain text
+    """
+    """ System prompt to inform the model about the tool is usage """
+    system_message = {
+        "role": "system", 
+        "content": f""" You are a HR management assistant. You can do following actions:
+                   - read or extract text from image using 'mcp/hr/read_resume_from_file' 
+                   - candidate screening or review cv using 'mcp/hr/candidate_screening'
+                   - can get available time slots using 'mcp/hr/get_interviewer_free_time' and 
+                   - can schedule an interview using 'mcp/hr/schedule_interview' if needed."""
+    }
+    # User asks a question that involves a calculation
+    user_message = {
+        "role": "user", 
+        "content": message
+    }
+    messages = [system_message, user_message]
+    available_tools = [ hrserver.read_resume_from_file, hrserver.candidate_screening, hrserver.get_interviewer_free_time , hrserver.schedule_interview]
+    
+    response = ollama.chat(
+        model="llama3.2",
+        messages=messages,
+        tools=available_tools,
+    )
+    tool_map = {tool.__name__: tool for tool in available_tools}
+    for tool_call in (response.message.tool_calls or []):
+        print("toosl called {} with argument {}".format(tool_call.function.name, tool_call.function.arguments))
+        func = tool_map.get(tool_call.function.name)
+        if func:
+            result = func(**tool_call.function.arguments)
+            messages.append({"role": "assistant", "content": f"The result is {result}."})
+            follow_up = ollama.chat(model='llama3.2', messages=messages)
+            return {"result": follow_up.message.content}
+    return {"result": response.message.content}
+
+@app.post("/upload")
+async def upload_file(file: UploadFile = File(...), role: str = Form(...)):
     if not file.filename:
         raise HTTPException(status_code=400, detail="No file uploaded")
     
     file_path = f"{UPLOAD_DIR}/{file.filename}"
-    
-    file_bytes = await file.read()
-    async with aiofiles.open(file_path, "wb") as buffer:
-        await buffer.write(file_bytes)
-    
-    if file.filename.lower().endswith(".pdf"):
-        resume_text = await __extract_text_from_pdf(file_bytes)
-    elif file.filename.lower().endswith((".png", ".jpg", ".jpeg")):
-        resume_text = await extract_text_from_image(file_path)
-    else:
-        raise HTTPException(status_code=400, detail="Unsupported file type")
-    print(f"""role:: {role}""")
-    result = hrserver.candidate_screening(resume_text, role)
-    return result
+    with open(file_path, "wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+
+    return {"info": "File saved successfully", "file_path": file_path , "role": role}

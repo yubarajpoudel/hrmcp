@@ -13,6 +13,10 @@ from rapidfuzz import fuzz
 from fastapi import FastAPI
 import argparse
 import json
+import fitz  # PyMuPDF
+import pytesseract
+from PIL import Image
+from typing import List, Optional
 
 
 from ollama_extractor import OllamaExtractor
@@ -29,6 +33,61 @@ def __load_hr_skills():
     with open(skills_file, "r") as f:
         skills_data = json.load(f)
     return skills_data
+
+async def __extract_text_from_pdf(resume_bytes: bytes) -> str:
+    doc_stream = fitz.open(stream=resume_bytes, filetype="pdf")
+    text = ""
+    for page in doc_stream:
+        text += page.get_text()
+    return text
+
+def _prepare_image_for_ocr(image: Image.Image) -> Image.Image:
+    """
+    Apply preprocessing steps to boost OCR accuracy, especially for numbers.
+    """
+    img = image.convert("L")  # grayscale
+
+    # Upscale small images to improve recognition of fine details
+    min_dimension = min(img.size)
+    if min_dimension < 1500:
+        scale_factor = 2
+        img = img.resize(
+            (img.width * scale_factor, img.height * scale_factor),
+            Image.LANCZOS,
+        )
+
+    # Enhance contrast and reduce noise
+    img = ImageOps.autocontrast(img)
+    img = img.filter(ImageFilter.MedianFilter(size=3))
+
+    # Binarize (threshold) to help distinguish characters
+    img = img.point(lambda x: 255 if x > 160 else 0, mode="1")
+    return img
+
+
+def extract_text_from_image(
+    image_path: str,
+    languages: str = "eng+ara",
+    whitelist: Optional[str] = None,
+) -> str:
+    """
+    Extract text from an image (PNG/JPG) using Tesseract OCR.
+    """
+    try:
+        with Image.open(image_path) as img:
+            processed_img = _prepare_image_for_ocr(img)
+            config = "--psm 6 --oem 3"
+            if whitelist:
+                config += f' -c tessedit_char_whitelist="{whitelist}"'
+            text = pytesseract.image_to_string(
+                processed_img,
+                lang=languages,
+                config=config,
+            )
+            return text.strip()
+    except Exception as exc:
+        print(f"Error extracting text from image {image_path}: {exc}")
+        return ""
 
 def parse_skills_text(text: str) -> list[str]:
     """
@@ -49,6 +108,45 @@ def __preprocess_resume(role: str, resume_text: str, role_skills: dict) -> list[
         return parse_skills_text(process_data)
         
     return process_data
+
+@mcp.tool()
+def read_resume_from_file(file_name: str) -> str:
+    """
+    Read the resume from the given file path and extract text.
+    
+    Args:
+        file_name: Name of the resume file (relative to uploads directory or absolute path)
+        
+    Returns:
+        The extracted resume text as a string.
+    """    
+    # Handle relative paths (assume uploads directory)
+    print(f"file_name: {file_name}")
+    if not file_name.startswith('/'):
+        uploads_dir = Path(__file__).parent.parent / "uploads"
+        full_path = uploads_dir / file_name
+    else:
+        full_path = Path(file_name)
+    
+    if not full_path.exists():
+        return f"Error: File not found at {full_path}"
+    print(f"full_path: {full_path}")
+    try:
+        # Extract text based on file type
+        if str(full_path).lower().endswith(".pdf"):
+            # Extract from PDF
+            return __extract_text_from_pdf(full_path)            
+        elif str(full_path).lower().endswith((".png", ".jpg", ".jpeg")):
+            # Extract from image using OCR
+            text = extract_text_from_image(str(full_path))
+            return text.strip()
+            
+        else:
+            return f"Error: Unsupported file type. Supported: PDF, PNG, JPG, JPEG"
+            
+    except Exception as e:
+        return f"Error extracting text from file: {str(e)}"
+
 
 @mcp.tool()
 def get_interviewer_free_time(interviewer: str) -> dict:
