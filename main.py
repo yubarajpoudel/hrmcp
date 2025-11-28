@@ -1,10 +1,17 @@
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException
+from fastapi.staticfiles import StaticFiles
+from fastapi.middleware.cors import CORSMiddleware
 app = FastAPI()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 import shutil
 import aiofiles
-import fitz  # PyMuPDF
-import pytesseract
-from PIL import Image, ImageFilter, ImageOps
 from hrmcpserver import hrserver
 import os
 import base64
@@ -14,75 +21,14 @@ import ollama
 
 UPLOAD_DIR = "./uploads/"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
-FIREBASE_ML_API_KEY = os.getenv("FIREBASE_ML_API_KEY", "").strip()
-FIREBASE_ML_ENDPOINT = "https://vision.googleapis.com/v1/images:annotate"
 
-async def extract_text_with_firebase_ml(
-    image_path: str,
-    language_hints: Optional[List[str]] = None,
-) -> str:
-    """
-    Use Firebase ML (backed by Google Cloud Vision API) to extract text from an image.
-    Requires FIREBASE_ML_API_KEY environment variable to be set.
-    """
-    if not FIREBASE_ML_API_KEY:
-        raise RuntimeError(
-            "FIREBASE_ML_API_KEY is not configured; cannot use Firebase ML OCR."
-        )
-
-    try:
-        async with aiofiles.open(image_path, "rb") as image_file:
-            image_bytes = await image_file.read()
-        encoded_image = base64.b64encode(image_bytes).decode("utf-8")
-
-        request_body = {
-            "requests": [
-                {
-                    "image": {"content": encoded_image},
-                    "features": [{"type": "DOCUMENT_TEXT_DETECTION"}],
-                }
-            ]
-        }
-
-        if language_hints:
-            request_body["requests"][0]["imageContext"] = {
-                "languageHints": language_hints
-            }
-
-        async with httpx.AsyncClient(timeout=30) as client:
-            response = await client.post(
-                f"{FIREBASE_ML_ENDPOINT}?key={FIREBASE_ML_API_KEY}",
-                json=request_body,
-            )
-            response.raise_for_status()
-
-        response_json = response.json()
-        annotations = response_json.get("responses", [{}])[0].get(
-            "fullTextAnnotation", {}
-        )
-        return annotations.get("text", "").strip()
-
-    except Exception as exc:
-        print(f"Error using Firebase ML OCR for {image_path}: {exc}")
-        return ""
-
-async def __extract_text_from_pdf(resume_bytes: bytes) -> str:
-    doc_stream = fitz.open(stream=resume_bytes, filetype="pdf")
-    text = ""
-    for page in doc_stream:
-        text += page.get_text()
-    return text
-
-@app.get("/")
+@app.get("/test")
 async def read_root():
-    return {"Hello": "World"}
+    return {"message": "i am alive"}
 
-@app.post("/chat")
-async def chat(message: str = Form(...)):
+def process_chat_message(message: str) -> str:
     """
-    Chat endpoint for HR management
-     - this will accept the input from the user as a plain text, plan the action with the ollama model to execute the available tools
-     - this will call the right tool based on the plan and return the result as the plain text
+    Process a chat message using Ollama and available tools.
     """
     """ System prompt to inform the model about the tool is usage """
     system_message = {
@@ -91,9 +37,19 @@ async def chat(message: str = Form(...)):
                    - read or extract text from image using 'mcp/hr/read_resume_from_file' 
                    - candidate screening or review cv using 'mcp/hr/candidate_screening'
                    - can get available time slots using 'mcp/hr/get_interviewer_free_time' and 
-                   - can schedule an interview using 'mcp/hr/schedule_interview' if needed."""
+                   - can schedule an interview using 'mcp/hr/schedule_interview' if needed.
+
+                   Response format:
+                   - if you need to perform an action, CALL THE TOOL DIRECTLY. Do not describe what you are going to do, just call the tool.
+                   - if you have the final answer, provide formatted response for eg. "based on your input, here is the final summar \n <final answer>".
+                   - structure the response with proper paragraph and list and heading.
+                   - if the action is not clear, provide a text response.
+                   - if you need to ask the user a clarifying question, provide a text response.
+
+                Important Note: donot include tool call in the response. just provide the final answer.
+                   """
     }
-    # User asks a question that involves a calculation
+    # User asks a question
     user_message = {
         "role": "user", 
         "content": message
@@ -101,21 +57,56 @@ async def chat(message: str = Form(...)):
     messages = [system_message, user_message]
     available_tools = [ hrserver.read_resume_from_file, hrserver.candidate_screening, hrserver.get_interviewer_free_time , hrserver.schedule_interview]
     
+    
+    # Initial call to the model
     response = ollama.chat(
         model="llama3.2",
         messages=messages,
         tools=available_tools,
     )
-    tool_map = {tool.__name__: tool for tool in available_tools}
-    for tool_call in (response.message.tool_calls or []):
-        print("toosl called {} with argument {}".format(tool_call.function.name, tool_call.function.arguments))
-        func = tool_map.get(tool_call.function.name)
-        if func:
-            result = func(**tool_call.function.arguments)
-            messages.append({"role": "assistant", "content": f"The result is {result}."})
-            follow_up = ollama.chat(model='llama3.2', messages=messages)
-            return {"result": follow_up.message.content}
-    return {"result": response.message.content}
+    
+    # Loop to handle tool calls
+    while response.message.tool_calls:
+        # Add the assistant's message with tool calls to history
+        messages.append(response.message)
+        
+        tool_map = {tool.__name__: tool for tool in available_tools}
+        
+        for tool_call in response.message.tool_calls:
+            print(f"Tool called: {tool_call.function.name} with arguments: {tool_call.function.arguments}")
+            func = tool_map.get(tool_call.function.name)
+            if func:
+                try:
+                    result = func(**tool_call.function.arguments)
+                    # Add the tool result to history
+                    messages.append({
+                        "role": "tool",
+                        "content": str(result),
+                    })
+                except Exception as e:
+                    messages.append({
+                        "role": "tool",
+                        "content": f"Error executing tool {tool_call.function.name}: {str(e)}",
+                    })
+        
+        # Get the next response from the model
+        response = ollama.chat(
+            model="llama3.2",
+            messages=messages,
+            tools=available_tools,
+        )
+
+    return response.message.content
+
+@app.post("/chat")
+async def chat(message: str = Form(...)):
+    """
+    Chat endpoint for HR management
+     - this will accept the input from the user as a plain text, plan the action with the ollama model to execute the available tools
+     - this will call the right tool based on the plan and return the result as the plain text
+    """
+    result = process_chat_message(message)
+    return {"result": result}
 
 @app.post("/upload")
 async def upload_file(file: UploadFile = File(...), role: str = Form(...)):
@@ -127,3 +118,28 @@ async def upload_file(file: UploadFile = File(...), role: str = Form(...)):
         shutil.copyfileobj(file.file, buffer)
 
     return {"info": "File saved successfully", "file_path": file_path , "role": role}
+
+def chat_interface():
+    print("HR Agent Chat Interface. Type 'bye' to exit.")
+    while True:
+        try:
+            user_input = input("You: ")
+            if user_input.lower() in ["bye", "exit", "quit"]:
+                print("Goodbye!")
+                break
+            response = process_chat_message(user_input)
+            print(f"Agent: {response}")
+            if "bye" in response.lower():
+                print("Agent ended the conversation.")
+                break
+        except KeyboardInterrupt:
+            print("\nGoodbye!")
+            break
+        except Exception as e:
+            print(f"An error occurred: {e}")
+
+if __name__ == "__main__":
+    import uvicorn
+    # Mount static files
+    app.mount("/", StaticFiles(directory="static", html=True), name="static")
+    uvicorn.run(app, host="0.0.0.0", port=8000)

@@ -34,8 +34,8 @@ def __load_hr_skills():
         skills_data = json.load(f)
     return skills_data
 
-async def __extract_text_from_pdf(resume_bytes: bytes) -> str:
-    doc_stream = fitz.open(stream=resume_bytes, filetype="pdf")
+def __extract_text_from_pdf(resume_path: Path) -> str:
+    doc_stream = fitz.open(resume_path)
     text = ""
     for page in doc_stream:
         text += page.get_text()
@@ -260,6 +260,6 @@ app.mount("/hr", mcp.streamable_http_app())
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="HR Server")
     parser.add_argument("--host", type=str, default="127.0.01", help="Host for the HR server")
-    parser.add_argument("--port", type=int, default=8001, help="Port for the HR server")
+    parser.add_argument("--port", type=int, default=8081, help="Port for the HR server")
     args = parser.parse_args()
     uvicorn.run(app, host=args.host, port=args.port, log_level="info")
