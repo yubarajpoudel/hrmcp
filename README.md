@@ -268,15 +268,6 @@ OLLAMA_BASE_URL=http://localhost:11434
 OLLAMA_MODEL=phi3:mini
 ```
 
-## Security Notes
-
-⚠️ **Important**: Never commit these files to version control:
-- `google_service.json` - OAuth client secrets
-- `token.json` - User access tokens
-- `uploads/` - Uploaded resumes
-
-These are already added to `.gitignore`.
-
 ## Troubleshooting
 
 ### Google Calendar Authentication Issues
