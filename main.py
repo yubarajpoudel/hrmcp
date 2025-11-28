@@ -17,55 +17,6 @@ os.makedirs(UPLOAD_DIR, exist_ok=True)
 FIREBASE_ML_API_KEY = os.getenv("FIREBASE_ML_API_KEY", "").strip()
 FIREBASE_ML_ENDPOINT = "https://vision.googleapis.com/v1/images:annotate"
 
-def _prepare_image_for_ocr(image: Image.Image) -> Image.Image:
-    """
-    Apply preprocessing steps to boost OCR accuracy, especially for numbers.
-    """
-    img = image.convert("L")  # grayscale
-
-    # Upscale small images to improve recognition of fine details
-    min_dimension = min(img.size)
-    if min_dimension < 1500:
-        scale_factor = 2
-        img = img.resize(
-            (img.width * scale_factor, img.height * scale_factor),
-            Image.LANCZOS,
-        )
-
-    # Enhance contrast and reduce noise
-    img = ImageOps.autocontrast(img)
-    img = img.filter(ImageFilter.MedianFilter(size=3))
-
-    # Binarize (threshold) to help distinguish characters
-    img = img.point(lambda x: 255 if x > 160 else 0, mode="1")
-    return img
-
-
-def extract_text_from_image(
-    image_path: str,
-    languages: str = "eng+ara",
-    whitelist: Optional[str] = None,
-) -> str:
-    """
-    Extract text from an image (PNG/JPG) using Tesseract OCR.
-    """
-    try:
-        with Image.open(image_path) as img:
-            processed_img = _prepare_image_for_ocr(img)
-            config = "--psm 6 --oem 3"
-            if whitelist:
-                config += f' -c tessedit_char_whitelist="{whitelist}"'
-            text = pytesseract.image_to_string(
-                processed_img,
-                lang=languages,
-                config=config,
-            )
-            return text.strip()
-    except Exception as exc:
-        print(f"Error extracting text from image {image_path}: {exc}")
-        return ""
-
-
 async def extract_text_with_firebase_ml(
     image_path: str,
     language_hints: Optional[List[str]] = None,
