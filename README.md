@@ -295,10 +295,6 @@ OLLAMA_MODEL=phi3:mini
 3. Make your changes
 4. Submit a pull request
 
-## License
-
-[Add your license here]
-
 ## Contact
 
-[Add your contact information]
+[yubarajpoudel708@gmail.com]
