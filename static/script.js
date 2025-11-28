@@ -23,11 +23,9 @@ async function handleSend() {
     const message = messageInput.value.trim();
     if (!message && !currentFile) return;
 
-    // Disable input while processing
     messageInput.disabled = true;
     sendBtn.disabled = true;
 
-    // Display user message
     if (message) {
         addMessage(message, 'user');
     }
@@ -39,12 +37,6 @@ async function handleSend() {
 
     try {
         let response;
-
-        // If there's a file, upload it first or send with message?
-        // The backend expects /upload for files and /chat for messages.
-        // But the prompt implies we might want to do both or the chat needs to know about the file.
-        // Let's upload the file first if it exists.
-
         if (currentFile) {
             const formData = new FormData();
             formData.append('file', currentFile);
@@ -60,12 +52,6 @@ async function handleSend() {
             }
 
             const uploadData = await uploadRes.json();
-            // We might want to inform the chat about the uploaded file
-            // The backend doesn't seem to automatically link them, so we'll append info to the message
-            // or just rely on the user's message referencing it.
-            // Let's append a note to the message sent to chat.
-
-            // If message is empty but file was uploaded, we should probably say something
             const fileMsg = `I have uploaded a file named ${currentFile.name}.`;
             const fullMessage = message ? `${fileMsg}\n\n${message}` : fileMsg;
 

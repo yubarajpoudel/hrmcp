@@ -1,8 +1,16 @@
 # HR Agent - AI-Powered HR Management System
 
-An intelligent HR management system that automates candidate screening, interview scheduling, and calendar management using AI and Google Calendar integration.
+An intelligent HR management system that automates candidate screening, interview scheduling, and calendar management using AI and Google Calendar integration. Now features a web-based Chat UI for seamless interaction.
+
+## 🎥 Project Preview
+[![Project Preview](agent.png)](https://www.loom.com/share/db9e2287812d46c6add99a8ca24cf17f)
 
 ## Features
+
+### 💬 Chat Interface (New!)
+- **Web-Based UI**: Clean, responsive chat interface to interact with the HR Agent.
+- **File Upload**: Upload resumes directly from the chat window.
+- **Interactive Conversations**: The agent can perform multi-step actions (e.g., read resume -> screen candidate -> respond) in a single conversation flow.
 
 ### 🎯 Candidate Screening
 - **AI-Powered Resume Analysis**: Automatically extracts and analyzes skills from resumes (PDF, PNG, JPG, JPEG)
@@ -24,6 +32,7 @@ An intelligent HR management system that automates candidate screening, intervie
 
 ## Tech Stack
 
+- **Frontend**: HTML5, CSS3, JavaScript (Vanilla)
 - **Backend**: FastAPI, Python 3.12
 - **AI/ML**: Ollama (local LLM), spaCy NLP
 - **OCR**: PyMuPDF, Pytesseract, PIL
@@ -120,53 +129,40 @@ work_end_hour = 17   # 5 PM
 
 ### Start the Servers
 
-**Main FastAPI Server:**
-```bash
-fastapi dev main.py
-# Runs on http://localhost:8000
-```
+1. **Start the MCP HR Server:**
+   ```bash
+   python ./hrmcpserver/hrserver.py --host 0.0.0.0 --port 8081
+   # Runs on http://0.0.0.0:8081
+   ```
 
-**MCP HR Server:**
-```bash
-python ./hrmcpserver/hrserver.py --host 0.0.0.0 --port 8081
-# Runs on http://0.0.0.0:8081
-```
+2. **Start the Main Application:**
+   ```bash
+   python main.py
+   # Runs on http://localhost:8000
+   ```
+
+3. **Access the Chat Interface:**
+   Open your browser and navigate to `http://localhost:8000`.
 
 ### API Endpoints
 
-#### Upload Resume for Screening
+#### Chat Endpoint
 ```bash
-POST /upload-resume/
+POST /chat
 Content-Type: multipart/form-data
 
 Parameters:
-- file: Resume file (PDF, PNG, JPG, JPEG)
-- role: Job role (e.g., "angular developer")
+- message: User message string
 ```
 
-**Example Response:**
-```json
-{
-  "results": {
-    "technical_skills": {
-      "matched_skills": ["Angular", "TypeScript", "RxJS"],
-      "missing_skills": ["NgRx", "Testing"]
-    },
-    "soft_skills": {
-      "matched_skills": ["Problem-solving", "Agile"],
-      "missing_skills": []
-    }
-  },
-  "summary": {
-    "role": "angular developer",
-    "total_matched": {
-      "technical_skills": 3,
-      "soft_skills": 2,
-      "certifications": 0
-    },
-    "match_percentage": 71.43
-  }
-}
+#### Upload File
+```bash
+POST /upload
+Content-Type: multipart/form-data
+
+Parameters:
+- file: File to upload
+- role: User role (default: "user")
 ```
 
 ### MCP Tools
