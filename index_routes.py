@@ -4,7 +4,6 @@ import shutil
 import aiofiles
 from hrmcpserver import hrserver
 import base64
-import os
 import httpx
 from typing import List, Optional
 import ollama
@@ -16,8 +15,6 @@ router = APIRouter(
 )
 
 UPLOAD_DIR = "./uploads/"
-os.makedirs(UPLOAD_DIR, exist_ok=True)
-
 
 def process_chat_message(message: str) -> str:
     """
