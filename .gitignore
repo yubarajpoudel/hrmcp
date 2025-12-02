@@ -176,5 +176,6 @@ pyrightconfig.json
 uploads/
 google_service.json
 token.json
+.env
 
 # End of https://www.toptal.com/developers/gitignore/api/python

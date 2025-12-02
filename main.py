@@ -4,9 +4,17 @@ from fastapi.middleware.cors import CORSMiddleware
 from auth.user_routes import router as user_router
 from index_routes import router as index_router
 from middleware import GlobalMiddleWare
+from auth.db_handler import DatabaseHandler
+from contextlib import asynccontextmanager
 import os
 
-app = FastAPI()
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    await DatabaseHandler.connect_db()
+    yield
+    await DatabaseHandler.close_db()
+
+app = FastAPI(lifespan=lifespan)
 
 origins = [
     "http://localhost:8000",

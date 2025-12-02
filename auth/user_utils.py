@@ -1,32 +1,25 @@
 from pydantic import BaseModel
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from fastapi import Depends, HTTPException, status
-from typing import Union, Annotated
+from typing import Union, Annotated, Optional
 from datetime import datetime, timedelta
 from pwdlib import PasswordHash
 from pwdlib.hashers.argon2 import Argon2Hasher
 from pwdlib.hashers.bcrypt import BcryptHasher
+from auth.db_handler import DatabaseHandler
+import jwt
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
 
 password_hash = PasswordHash([Argon2Hasher(), BcryptHasher()])
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/token")
 
-import jwt
-
-SECRET_KEY = "09d25e094faa6ca2556c818166b7a9563b93f7099f6f0f4caa6cf63b88e8d3e7"
-ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 30
-
-fake_db = {
-    "johndoe": {
-        "username": "johndoe",
-        "full_name": "John Doe",
-        "email": "johndoe@example.com",
-        "role": "admin",
-        "hashed_password": "$argon2id$v=19$m=65536,t=3,p=4$eqqkynvwEBqajmgERFcOEA$euvR/vJE4lfVxQnFtKTjskFTVQRGnPZPDUBtnLPQNMc",
-        "disabled": False,
-    }
-}
+SECRET_KEY = os.getenv("SECRET_KEY", "09d25e094faa6ca2556c818166b7a9563b93f7099f6f0f4caa6cf63b88e8d3e7")
+ALGORITHM = os.getenv("ALGORITHM", "HS256")
+ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "30"))
 
 class User(BaseModel):
     username: str
@@ -35,6 +28,13 @@ class User(BaseModel):
     email: Union[str, None] = None
     role: Union[str, None] = None
     disabled: Union[bool, None] = False
+
+class UserCreate(BaseModel):
+    username: str
+    password: str
+    email: Optional[str] = None
+    full_name: Optional[str] = None
+    role: Optional[str] = "user"
 
 class Token(BaseModel):
     access_token: str
@@ -56,13 +56,14 @@ def verify_password(plain_password, hashed_password):
         print(f"Verification failed: {e}")
         return False
 
-def get_user(db, username: str):
-    if username in db:
-        user_dict = db[username]
+async def get_user(username: str) -> Optional[User]:
+    user_dict = await DatabaseHandler.get_user(username)
+    if user_dict:
         return User(**user_dict)
+    return None
 
-def authenticate_user(username: str, password: str):
-    user = get_user(fake_db, username)
+async def authenticate_user(username: str, password: str):
+    user = await get_user(username)
     if not user:
         return False
     if not verify_password(password, user.hashed_password):
@@ -89,7 +90,7 @@ async def get_current_user(token: str = Depends(oauth2_scheme)):
         token_data = TokenData(username=username)
     except Exception as e:
         raise credentials_exception
-    user = get_user(fake_db, username=token_data.username)
+    user = await get_user(username=token_data.username)
     if user is None:
         raise credentials_exception
     return user
