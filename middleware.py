@@ -20,6 +20,6 @@ async def auth_middleware(request: Request):
     if not token:
         raise HTTPException(status_code=401, detail="Not authenticated")
     try:
-        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=["HS256"])
+        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=settings.ALGORITHM)
     except jwt.PyJWTError:
         raise HTTPException(status_code=403, detail="Invalid authentication credentials")
