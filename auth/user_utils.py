@@ -8,18 +8,17 @@ from pwdlib.hashers.argon2 import Argon2Hasher
 from pwdlib.hashers.bcrypt import BcryptHasher
 from auth.db_handler import DatabaseHandler
 import jwt
-import os
-from dotenv import load_dotenv
+from core.env.env_utils import get_settings
 
-load_dotenv()
+settings = get_settings()
 
 password_hash = PasswordHash([Argon2Hasher(), BcryptHasher()])
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/token")
 
-SECRET_KEY = os.getenv("SECRET_KEY", "09d25e094faa6ca2556c818166b7a9563b93f7099f6f0f4caa6cf63b88e8d3e7")
-ALGORITHM = os.getenv("ALGORITHM", "HS256")
-ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "30"))
+SECRET_KEY = settings.SECRET_KEY
+ALGORITHM = settings.ALGORITHM
+ACCESS_TOKEN_EXPIRE_MINUTES = settings.ACCESS_TOKEN_EXPIRE_MINUTES
 
 class User(BaseModel):
     username: str

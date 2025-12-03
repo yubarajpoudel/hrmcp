@@ -177,5 +177,6 @@ uploads/
 google_service.json
 token.json
 .env
+core/env/.env
 
 # End of https://www.toptal.com/developers/gitignore/api/python

@@ -1,14 +1,13 @@
 from motor.motor_asyncio import AsyncIOMotorClient
 from typing import Optional, Dict
-import os
-from dotenv import load_dotenv
+from core.env.env_utils import get_settings
 
-load_dotenv()
+settings = get_settings()
 
 # MongoDB connection string
-MONGODB_URL = os.getenv("MONGODB_URL", "mongodb+srv://<user_name>:<password>@hr.wj17o.mongodb.net/?appName=HR")
-DATABASE_NAME = "hr_database"
-USERS_COLLECTION = "users"
+MONGODB_URL = settings.MONGODB_URL
+DATABASE_NAME = settings.DATABASE_NAME
+USERS_COLLECTION = settings.USER
 
 class DatabaseHandler:
     client: Optional[AsyncIOMotorClient] = None

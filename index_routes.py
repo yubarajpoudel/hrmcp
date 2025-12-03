@@ -7,6 +7,8 @@ import base64
 import httpx
 from typing import List, Optional
 import ollama
+from fastapi import Depends
+from middleware import auth_middleware
 
 
 router = APIRouter(
@@ -108,7 +110,7 @@ def chat_interface():
             print(f"An error occurred: {e}")
 
 
-@router.post("/chat")
+@router.post("/chat", dependencies=[Depends(auth_middleware)])
 async def chat(message: str = Form(...)):
     """
     Chat endpoint for HR management
@@ -118,7 +120,7 @@ async def chat(message: str = Form(...)):
     result = process_chat_message(message)
     return {"result": result}
 
-@router.post("/upload")
+@router.post("/upload", dependencies=[Depends(auth_middleware)])
 async def upload_file(file: UploadFile = File(...), role: str = Form(...)):
     if not file.filename:
         raise HTTPException(status_code=400, detail="No file uploaded")
