@@ -21,6 +21,7 @@ ALGORITHM = settings.ALGORITHM
 ACCESS_TOKEN_EXPIRE_MINUTES = settings.ACCESS_TOKEN_EXPIRE_MINUTES
 
 class User(BaseModel):
+    id: Union[str, None] = None  # MongoDB _id field
     username: str
     full_name: Union[str, None] = None
     hashed_password: str
@@ -41,6 +42,7 @@ class Token(BaseModel):
 
 class TokenData(BaseModel):
     username: Union[str, None] = None
+    user_id: Union[str, None] = None
 
 
 def generate_hashed_password(plain_password: str) -> str:
@@ -58,11 +60,15 @@ def verify_password(plain_password, hashed_password):
 async def get_user(username: str) -> Optional[User]:
     user_dict = await DatabaseHandler.get_user(username)
     if user_dict:
+        # Map MongoDB's _id to id field for Pydantic model
+        if "_id" in user_dict:
+            user_dict["id"] = user_dict.pop("_id")
         return User(**user_dict)
     return None
 
 async def authenticate_user(username: str, password: str):
     user = await get_user(username)
+    print(f"authenticate_user :: user: {user}")
     if not user:
         return False
     if not verify_password(password, user.hashed_password):
@@ -84,9 +90,10 @@ async def get_current_user(token: str = Depends(oauth2_scheme)):
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         username: str = payload.get("sub")
-        if username is None:
+        user_id: str = payload.get("user_id")
+        if username is None or user_id is None:
             raise credentials_exception
-        token_data = TokenData(username=username)
+        token_data = TokenData(username=username, user_id=user_id)
     except Exception as e:
         raise credentials_exception
     user = await get_user(username=token_data.username)

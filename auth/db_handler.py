@@ -84,6 +84,7 @@ class DatabaseHandler:
         user = await users_collection.find_one({"username": username})
         if user:
             user["_id"] = str(user["_id"])
+            print(f"get_user: {user}")
         return user
     
     @classmethod

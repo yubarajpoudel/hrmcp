@@ -3,6 +3,7 @@ from fastapi import Request, Response
 import jwt
 from fastapi import HTTPException
 from core.env.env_utils import get_settings
+from auth.redis_handler import RedisHandler
 
 settings = get_settings()
 import time 
@@ -23,3 +24,4 @@ async def auth_middleware(request: Request):
         payload = jwt.decode(token, settings.SECRET_KEY, algorithms=settings.ALGORITHM)
     except jwt.PyJWTError:
         raise HTTPException(status_code=403, detail="Invalid authentication credentials")
+    

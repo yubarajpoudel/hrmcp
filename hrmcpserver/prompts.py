@@ -5,7 +5,7 @@ class Prompt:
       You are the hiring manager and reviewing the CV to onboard the candidate for the role : {role}:
     Instruction:
       - evaluate the resume content : {resume}
-      - prepare the list of technical skill the candidate has based on the provided skillset : {skillset}
+      - prepare the list of technical skill the candidate has based on the provided skillset : {skillset} for the role : {role}
       - ensure all the list item is in lower case
       - return the final response as a list of string strictly for eg ["skill1", "skill2"] 
     """

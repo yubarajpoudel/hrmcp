@@ -16,9 +16,21 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
 
 
+    # Redis Configuration
+    REDIS_HOST: str = "localhost"
+    REDIS_PORT: int = 6379
+    REDIS_DB: int = 0
+    REDIS_USER: str = None
+    REDIS_PASSWORD: str = None
+
+    # LLM Configuration
+    LLM_TOKEN_LIMIT: int = 1000
+
+
     model_config = SettingsConfigDict(
+        env_file=str(Path(__file__).parent / ".env"),
         env_file_encoding="utf-8",
-        case_sensitive=True,
+        case_sensitive=True
     )
 
     @field_validator("ENV")
@@ -35,12 +47,6 @@ class Settings(BaseSettings):
     @property
     def is_debuggable(self) -> bool:
         return self.ENV=="dev"
-    
-    model_config = SettingsConfigDict(
-        env_file=str(Path(__file__).parent / ".env"),
-        env_file_encoding="utf-8",
-        case_sensitive=True
-    )
 @lru_cache
 def get_settings() -> Settings:
     return Settings()

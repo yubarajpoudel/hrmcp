@@ -1,18 +1,23 @@
-from fastapi import FastAPI, UploadFile, File, Form, HTTPException
+from fastapi import FastAPI, UploadFile, File, Form, HTTPException, Depends
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from auth.user_routes import router as user_router
 from index_routes import router as index_router
 from middleware import GlobalMiddleWare
 from auth.db_handler import DatabaseHandler
+from auth.redis_handler import RedisHandler
 from contextlib import asynccontextmanager
+from middleware import auth_middleware
 import os
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     await DatabaseHandler.connect_db()
+    RedisHandler.get_instance()
     yield
     await DatabaseHandler.close_db()
+    RedisHandler.close_instance()
 
 app = FastAPI(lifespan=lifespan)
 
