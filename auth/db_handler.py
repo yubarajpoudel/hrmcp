@@ -1,7 +1,6 @@
-from motor.motor_asyncio import AsyncIOMotorClient
-from typing import Optional, Dict
+from pymongo import MongoClient
 from core.env.env_utils import get_settings
-
+from typing import Dict, Optional        
 settings = get_settings()
 
 # MongoDB connection string
@@ -10,17 +9,18 @@ DATABASE_NAME = settings.DATABASE_NAME
 USERS_COLLECTION = settings.USER
 
 class DatabaseHandler:
-    client: Optional[AsyncIOMotorClient] = None
+    client = MongoClient(settings.MONGODB_URL)
+    db = client[settings.DATABASE_NAME]
     
     @classmethod
-    async def connect_db(cls):
+    def connect_db(cls):
         """Connect to MongoDB"""
         if cls.client is None:
-            cls.client = AsyncIOMotorClient(MONGODB_URL)
+            cls.client = MongoClient(MONGODB_URL)
             print(f"Connected to MongoDB at {DATABASE_NAME}")
     
     @classmethod
-    async def close_db(cls):
+    def close_db(cls):
         """Close MongoDB connection"""
         if cls.client:
             cls.client.close()
@@ -34,7 +34,7 @@ class DatabaseHandler:
         return cls.client[DATABASE_NAME]
     
     @classmethod
-    async def create_user(cls, user_data: Dict) -> Dict:
+    def create_user(cls, user_data: Dict) -> Dict:
         """
         Create a new user in the database
         
@@ -54,7 +54,7 @@ class DatabaseHandler:
         users_collection = db[USERS_COLLECTION]
         
         # Check if user already exists
-        existing_user = await users_collection.find_one({"username": user_data["username"]})
+        existing_user = users_collection.find_one({"username": user_data["username"]})
         if existing_user:
             raise ValueError(f"User with username '{user_data['username']}' already exists")
         
@@ -62,13 +62,13 @@ class DatabaseHandler:
         user_data.setdefault("disabled", False)
         
         # Insert user
-        result = await users_collection.insert_one(user_data)
+        result = users_collection.insert_one(user_data)
         user_data["_id"] = str(result.inserted_id)
         
         return user_data
     
     @classmethod
-    async def get_user(cls, username: str) -> Optional[Dict]:
+    def get_user(cls, username: str) -> Optional[Dict]:
         """
         Get user by username
         
@@ -81,14 +81,14 @@ class DatabaseHandler:
         db = cls.get_database()
         users_collection = db[USERS_COLLECTION]
         
-        user = await users_collection.find_one({"username": username})
+        user = users_collection.find_one({"username": username})
         if user:
             user["_id"] = str(user["_id"])
             print(f"get_user: {user}")
         return user
     
     @classmethod
-    async def update_user(cls, username: str, update_data: Dict) -> bool:
+    def update_user(cls, username: str, update_data: Dict) -> bool:
         """
         Update user information
         
@@ -102,7 +102,7 @@ class DatabaseHandler:
         db = cls.get_database()
         users_collection = db[USERS_COLLECTION]
         
-        result = await users_collection.update_one(
+        result = users_collection.update_one(
             {"username": username},
             {"$set": update_data}
         )
@@ -110,7 +110,7 @@ class DatabaseHandler:
         return result.modified_count > 0
     
     @classmethod
-    async def delete_user(cls, username: str) -> bool:
+    def delete_user(cls, username: str) -> bool:
         """
         Delete user by username
         
@@ -123,5 +123,5 @@ class DatabaseHandler:
         db = cls.get_database()
         users_collection = db[USERS_COLLECTION]
         
-        result = await users_collection.delete_one({"username": username})
+        result = users_collection.delete_one({"username": username})
         return result.deleted_count > 0

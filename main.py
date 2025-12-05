@@ -13,10 +13,10 @@ import os
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    await DatabaseHandler.connect_db()
+    DatabaseHandler.connect_db()
     RedisHandler.get_instance()
     yield
-    await DatabaseHandler.close_db()
+    DatabaseHandler.close_db()
     RedisHandler.close_instance()
 
 app = FastAPI(lifespan=lifespan)

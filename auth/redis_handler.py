@@ -1,10 +1,3 @@
-# connect with redis
-# handle the failover mechanism of redis connection
-# handle the connection pool of redis
-# handle the connection timeout of redis
-# add the getter and setter functions
-# implement the connection pool cleanup function
-# get the data from mongodb and store it in redis if the key is not present
 import redis
 from core.env.env_utils import get_settings
 from auth.queue_manager import QueueManager
@@ -17,16 +10,14 @@ class RedisHandler:
         print("Redis connected")
     
     def set_key(self, key, value):
-        # update the value in redis
         self.redis_client.set(key, str(value))
-        # send the value to update in mongo in the queue (async operation)
         try:
             queue_update_mongo(key, value)
         except Exception as e:
             print(f"Error queuing mongo update: {e}")
     
-    async def get_key(self, key):
-        return await self.load_data_from_db_ifnotexists(key)
+    def get_key(self, key):
+        return self.load_data_from_db_ifnotexists(key)
     
     def delete_key(self, key):
         self.redis_client.delete(key)
@@ -54,14 +45,14 @@ class RedisHandler:
             cls._instance.close()
             del cls._instance
     
-    async def load_data_from_db_ifnotexists(self, key):
+    def load_data_from_db_ifnotexists(self, key):
         # Check if key exists in Redis
         value = self.redis_client.get(key)
         if not value:
             # retrieve the value from mongodb
             # store the value in redis
             # return the value
-            tokenDocument = await DatabaseHandler.get_database().get_collection("token").find_one({"_id": key})
+            tokenDocument = DatabaseHandler.get_database().get_collection("token").find_one({"_id": key})
             if tokenDocument:
                 self.redis_client.set(key, tokenDocument["usage"])
                 return tokenDocument["usage"]
@@ -72,20 +63,28 @@ class RedisHandler:
 def update_mongo_sync(key, value):
     try:
         # Use synchronous pymongo client for RQ worker
-        db = DatabaseHandler.get_database()
+        from pymongo import MongoClient
+        from core.env.env_utils import get_settings
+        
+        settings = get_settings()
+        client = MongoClient(settings.MONGODB_URL)
+        db = client[settings.DATABASE_NAME]
+        
         result = db.get_collection("token").update_one(
             {"_id": key}, 
-            {"$inc": {"usage": value}},
+            {"$inc": {"usage": int(value)}},
             upsert=True
         )
         print(f"MongoDB updated: {key} incremented by {value}, matched: {result.matched_count}, modified: {result.modified_count}")
+        client.close()
         return True
     except Exception as e:
         print(f"Error updating MongoDB: {e}")
         return False
 
 def queue_update_mongo(key, value):
+    print(f"Queue started for {key} with value {value}")
     """Push the MongoDB update task to the queue"""
     redis_client = RedisHandler.get_instance().redis_client
-    queue_manager = QueueManager(redis_client).enqueue(update_mongo_sync, key, value)
-    queue_manager.start_worker()
+    queue_manager = QueueManager(redis_client)
+    queue_manager.enqueue(update_mongo_sync, key, value)

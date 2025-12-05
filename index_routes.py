@@ -23,7 +23,7 @@ router = APIRouter(
 UPLOAD_DIR = "./uploads/"
 redis_client = RedisHandler.get_instance()
 
-async def llm_token_limit_middleware(key: str, body_str: str):
+def llm_token_limit_middleware(key: str, body_str: str):
     print("llm middleware - IP: {key}, body: {body_str}")  
     llm_token_size = int(len(body_str) // 4 if body_str else 0)
     
@@ -32,7 +32,7 @@ async def llm_token_limit_middleware(key: str, body_str: str):
     if llm_token_size > settings.LLM_TOKEN_LIMIT:
         raise HTTPException(status_code=403, detail="Input text is too long, increase your plan to allow more tokens")
     
-    token_usage_str = await redis_client.get_key(key)
+    token_usage_str = redis_client.get_key(key)
     token_usage_count = int(token_usage_str) if token_usage_str else 0
     
     remaining_allowed_token = settings.LLM_TOKEN_LIMIT - token_usage_count
@@ -136,18 +136,18 @@ def chat_interface():
 
 
 @router.post("/chat")
-async def chat(req: Request, message: str = Form(...), current_user = Depends(get_current_user)):
+def chat(req: Request, message: str = Form(...), current_user = Depends(get_current_user)):
     """
     Chat endpoint for HR management
      - this will accept the input from the user as a plain text, plan the action with the ollama model to execute the available tools
      - this will call the right tool based on the plan and return the result as the plain text
     """
-    await llm_token_limit_middleware(current_user.id, message)
+    llm_token_limit_middleware(current_user.id, message)
     result = process_chat_message(message)
     return {"result": result}
 
 @router.post("/upload")
-async def upload_file(file: UploadFile = File(...), role: str = Form(...)):
+def upload_file(file: UploadFile = File(...), role: str = Form(...)):
     if not file.filename:
         raise HTTPException(status_code=400, detail="No file uploaded")
     
@@ -158,5 +158,5 @@ async def upload_file(file: UploadFile = File(...), role: str = Form(...)):
     return {"info": "File saved successfully", "file_path": file_path , "role": role}
 
 @router.get("/test")
-async def read_root():
+def read_root():
     return {"message": "i am alive"}

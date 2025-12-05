@@ -1,9 +1,21 @@
 from rq import Queue, Worker
 from redis import Redis
 
+from core.env.env_utils import get_settings
+import redis
+
 class QueueManager:
-    def __init__(self, redis_client: Redis):
-        self.redis_client = redis_client
+    def __init__(self, redis_client: Redis = None):
+        settings = get_settings()
+        # RQ requires raw bytes, so we need decode_responses=False
+        self.redis_client = redis.Redis(
+            host=settings.REDIS_HOST,
+            port=settings.REDIS_PORT,
+            db=settings.REDIS_DB,
+            username=settings.REDIS_USER,
+            password=settings.REDIS_PASSWORD,
+            decode_responses=False
+        )
         self.queue = Queue(connection=self.redis_client)
     
     def enqueue(self, func, *args, **kwargs):
