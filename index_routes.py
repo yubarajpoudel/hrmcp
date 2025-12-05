@@ -13,7 +13,8 @@ import ollama
 from fastapi import Depends
 from middleware import auth_middleware
 from auth.user_utils import get_current_user
-
+from fastapi.responses import StreamingResponse
+import json
 
 router = APIRouter(
     prefix="",
@@ -43,9 +44,12 @@ def llm_token_limit_middleware(key: str, body_str: str):
         new_usage = token_usage_count + llm_token_size
         redis_client.set_key(key, str(new_usage))
 
-def process_chat_message(message: str) -> str:
+
+
+def process_chat_message(message: str):
     """
     Process a chat message using Ollama and available tools.
+    Returns a generator that yields response chunks.
     """
     """ System prompt to inform the model about the tool is usage """
     system_message = {
@@ -74,46 +78,53 @@ def process_chat_message(message: str) -> str:
     messages = [system_message, user_message]
     available_tools = [ hrserver.read_resume_from_file, hrserver.candidate_screening, hrserver.get_interviewer_free_time , hrserver.schedule_interview]
     
-    
-    # Initial call to the model
-    response = ollama.chat(
-        model="llama3.2",
-        messages=messages,
-        tools=available_tools,
-    )
-    
-    # Loop to handle tool calls
-    while response.message.tool_calls:
-        # Add the assistant's message with tool calls to history
-        messages.append(response.message)
-        
-        tool_map = {tool.__name__: tool for tool in available_tools}
-        
-        for tool_call in response.message.tool_calls:
-            print(f"Tool called: {tool_call.function.name} with arguments: {tool_call.function.arguments}")
-            func = tool_map.get(tool_call.function.name)
-            if func:
-                try:
-                    result = func(**tool_call.function.arguments)
-                    # Add the tool result to history
-                    messages.append({
-                        "role": "tool",
-                        "content": str(result),
-                    })
-                except Exception as e:
-                    messages.append({
-                        "role": "tool",
-                        "content": f"Error executing tool {tool_call.function.name}: {str(e)}",
-                    })
-        
-        # Get the next response from the model
+    while True:
+        # Initial call to the model (non-streaming to handle tools correctly)
         response = ollama.chat(
             model="llama3.2",
             messages=messages,
             tools=available_tools,
+            stream=False
         )
-
-    return response.message.content
+        
+        if response.message.tool_calls:
+            # Add the assistant's message with tool calls to history
+            messages.append(response.message)
+            
+            tool_map = {tool.__name__: tool for tool in available_tools}
+            
+            for tool_call in response.message.tool_calls:
+                print(f"Tool called: {tool_call.function.name} with arguments: {tool_call.function.arguments}")
+                func = tool_map.get(tool_call.function.name)
+                if func:
+                    try:
+                        result = func(**tool_call.function.arguments)
+                        # Add the tool result to history
+                        messages.append({
+                            "role": "tool",
+                            "content": str(result),
+                        })
+                    except Exception as e:
+                        messages.append({
+                            "role": "tool",
+                            "content": f"Error executing tool {tool_call.function.name}: {str(e)}",
+                        })
+            # Loop again to let the model process tool results
+        else:
+            # No tool calls, this is the final response.
+            # Re-run with stream=True to stream the content to the user.
+            stream = ollama.chat(
+                model="llama3.2",
+                messages=messages,
+                tools=available_tools,
+                stream=True
+            )
+            
+            for chunk in stream:
+                content = chunk['message']['content']
+                if content:
+                    yield content
+            break
 
 def chat_interface():
     print("HR Agent Chat Interface. Type 'bye' to exit.")
@@ -123,9 +134,16 @@ def chat_interface():
             if user_input.lower() in ["bye", "exit", "quit"]:
                 print("Goodbye!")
                 break
-            response = process_chat_message(user_input)
-            print(f"Agent: {response}")
-            if "bye" in response.lower():
+            
+            # For CLI, we just consume the generator and print
+            print("Agent: ", end="", flush=True)
+            full_response = ""
+            for chunk in process_chat_message(user_input):
+                print(chunk, end="", flush=True)
+                full_response += chunk
+            print()
+            
+            if "bye" in full_response.lower():
                 print("Agent ended the conversation.")
                 break
         except KeyboardInterrupt:
@@ -143,8 +161,11 @@ def chat(req: Request, message: str = Form(...), current_user = Depends(get_curr
      - this will call the right tool based on the plan and return the result as the plain text
     """
     llm_token_limit_middleware(current_user.id, message)
-    result = process_chat_message(message)
-    return {"result": result}
+    
+    return StreamingResponse(
+        process_chat_message(message),
+        media_type="text/event-stream"
+    )
 
 @router.post("/upload")
 def upload_file(file: UploadFile = File(...), role: str = Form(...)):
