@@ -47,15 +47,15 @@ async def register_user(user_data: UserCreate):
         raise HTTPException(status_code=500, detail=f"Failed to create user: {str(e)}")
 
 @router.post("/token")
-async def login_for_access_token(form_data: Annotated[OAuth2PasswordRequestForm, Depends()]) -> Token:
+def login_for_access_token(form_data: Annotated[OAuth2PasswordRequestForm, Depends()]) -> Token:
     print("username: " + form_data.username + " password: " + form_data.password)
-    user = await authenticate_user(form_data.username, form_data.password)
+    user = authenticate_user(form_data.username, form_data.password)
     if not user:
         raise HTTPException(status_code=401, detail="Incorrect username or password", headers={"WWW-Authenticate": "Bearer"})
     print(f"user: {user}")
-    access_token = await create_access_token(data={"sub": user.username, "user_id": user.id})
+    access_token = create_access_token(data={"sub": user.username, "user_id": user.id})
     return {"access_token": access_token, "token_type": "bearer"}
 
 @router.get("/me", response_model=User)
-async def read_users_me(current_user: Annotated[User, Depends(get_current_active_user)]):
+def read_users_me(current_user: Annotated[User, Depends(get_current_active_user)]):
     return current_user

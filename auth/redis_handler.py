@@ -2,6 +2,9 @@ import redis
 from core.env.env_utils import get_settings
 from auth.queue_manager import QueueManager
 from auth.db_handler import DatabaseHandler
+import datetime
+
+db = DatabaseHandler.get_database()
 
 class RedisHandler:
     def __init__(self):
@@ -46,13 +49,9 @@ class RedisHandler:
             del cls._instance
     
     def load_data_from_db_ifnotexists(self, key):
-        # Check if key exists in Redis
         value = self.redis_client.get(key)
         if not value:
-            # retrieve the value from mongodb
-            # store the value in redis
-            # return the value
-            tokenDocument = DatabaseHandler.get_database().get_collection("token").find_one({"_id": key})
+            tokenDocument = db.get_collection(f"token/{datetime.datetime.now().strftime('%Y-%m-%d')}").find_one({"_id": key})
             if tokenDocument:
                 self.redis_client.set(key, tokenDocument["usage"])
                 return tokenDocument["usage"]
@@ -62,21 +61,12 @@ class RedisHandler:
 
 def update_mongo_sync(key, value):
     try:
-        # Use synchronous pymongo client for RQ worker
-        from pymongo import MongoClient
-        from core.env.env_utils import get_settings
-        
-        settings = get_settings()
-        client = MongoClient(settings.MONGODB_URL)
-        db = client[settings.DATABASE_NAME]
-        
-        result = db.get_collection("token").update_one(
-            {"_id": key}, 
+        result = db.get_collection(f"token/{datetime.datetime.now().strftime('%Y-%m-%d')}").update_one(
+            {"_id": key},
             {"$inc": {"usage": int(value)}},
             upsert=True
         )
         print(f"MongoDB updated: {key} incremented by {value}, matched: {result.matched_count}, modified: {result.modified_count}")
-        client.close()
         return True
     except Exception as e:
         print(f"Error updating MongoDB: {e}")
